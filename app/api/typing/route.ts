@@ -3,21 +3,22 @@ import { pusherServer } from "@/lib/pusher"
 
 export async function POST(request: NextRequest) {
   try {
-    const { username, roomId, isTyping } = await request.json()
+    const { userId, conversationId, isTyping, username } = await request.json()
 
-    if (!username || !roomId) {
-      return NextResponse.json({ error: "Username and room ID are required" }, { status: 400 })
+    if (!userId || !conversationId || !username) {
+      return NextResponse.json({ error: "User ID, conversation ID, and username are required" }, { status: 400 })
     }
 
-    // Broadcast typing status via Pusher
-    await pusherServer.trigger(`room-${roomId}`, "typing", {
+    // Broadcast typing status to conversation
+    await pusherServer.trigger(`conversation-${conversationId}`, "typing", {
+      userId,
       username,
       isTyping,
     })
 
     return NextResponse.json({ success: true })
   } catch (error) {
-    console.error("Error broadcasting typing status:", error)
+    console.error("Typing error:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

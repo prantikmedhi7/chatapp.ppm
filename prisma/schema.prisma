@@ -10,19 +10,86 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Room {
+model User {
   id        String   @id @default(cuid())
-  roomId    String   @unique
-  password  String
+  username  String   @unique
+  email     String?
+  avatar    String?
+  isOnline  Boolean  @default(false)
+  lastSeen  DateTime @default(now())
   createdAt DateTime @default(now())
-  messages  Message[]
+
+  // Messages sent by this user
+  sentMessages     Message[] @relation("MessageSender")
+  
+  // Friendships where this user is the requester
+  sentFriendships     Friendship[] @relation("FriendshipRequester")
+  
+  // Friendships where this user is the receiver
+  receivedFriendships Friendship[] @relation("FriendshipReceiver")
+  
+  // Conversations this user participates in
+  conversations ConversationParticipant[]
+}
+
+model Friendship {
+  id          String           @id @default(cuid())
+  requesterId String
+  receiverId  String
+  status      FriendshipStatus @default(PENDING)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  requester User @relation("FriendshipRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+  receiver  User @relation("FriendshipReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
+
+  @@unique([requesterId, receiverId])
+}
+
+model Conversation {
+  id        String   @id @default(cuid())
+  type      ConversationType @default(DIRECT)
+  name      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  participants ConversationParticipant[]
+  messages     Message[]
+}
+
+model ConversationParticipant {
+  id             String   @id @default(cuid())
+  userId         String
+  conversationId String
+  joinedAt       DateTime @default(now())
+  lastReadAt     DateTime @default(now())
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, conversationId])
 }
 
 model Message {
-  id        String   @id @default(cuid())
-  sender    String
-  content   String
-  roomId    String
-  createdAt DateTime @default(now())
-  room      Room     @relation(fields: [roomId], references: [roomId])
+  id             String   @id @default(cuid())
+  content        String
+  senderId       String
+  conversationId String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  sender       User         @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+}
+
+enum FriendshipStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  BLOCKED
+}
+
+enum ConversationType {
+  DIRECT
+  GROUP
 }

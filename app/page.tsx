@@ -2,78 +2,75 @@
 
 import { useState, useEffect } from "react"
 import LoginForm from "@/components/LoginForm"
-import ChatRoom from "@/components/ChatRoom"
+import ChatLayout from "@/components/ChatLayout"
+import { getCurrentUser, setCurrentUser, clearCurrentUser } from "@/lib/auth"
 
 export default function Home() {
   const [isLoggedIn, setIsLoggedIn] = useState(false)
-  const [username, setUsername] = useState("")
-  const [roomId, setRoomId] = useState("")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [successMessage, setSuccessMessage] = useState<string | null>(null)
 
-  // Load saved data from localStorage
+  // Check if user is already logged in
   useEffect(() => {
-    const savedUsername = localStorage.getItem("chat-username")
-    if (savedUsername) setUsername(savedUsername)
+    const user = getCurrentUser()
+    if (user) {
+      setIsLoggedIn(true)
+    }
   }, [])
 
-  const handleJoinRoom = async (inputUsername: string, inputRoomId: string, password: string) => {
+  const handleLogin = async (username: string) => {
     setLoading(true)
     setError(null)
-    setSuccessMessage(null)
 
     try {
-      const response = await fetch("/api/join-room", {
+      const response = await fetch("/api/auth/login", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          username: inputUsername,
-          roomId: inputRoomId,
-          password,
-        }),
+        body: JSON.stringify({ username }),
       })
 
       const data = await response.json()
 
       if (response.ok) {
-        // Save to localStorage
-        localStorage.setItem("chat-username", inputUsername)
-        localStorage.setItem("chat-roomId", inputRoomId)
-
-        setUsername(inputUsername)
-        setRoomId(inputRoomId)
-        setSuccessMessage(data.message)
-
-        // Small delay to show success message
-        setTimeout(() => {
-          setIsLoggedIn(true)
-        }, 1000)
+        setCurrentUser(data.user)
+        setIsLoggedIn(true)
       } else {
-        setError(data.error || "Failed to join room")
+        setError(data.error || "Failed to login")
       }
     } catch (error) {
-      console.error("Network error:", error)
-      setError("Network error. Please check your connection and try again.")
+      console.error("Login error:", error)
+      setError("Network error. Please try again.")
     } finally {
       setLoading(false)
     }
   }
 
-  const handleLeaveRoom = () => {
+  const handleLogout = async () => {
+    const user = getCurrentUser()
+    if (user) {
+      try {
+        await fetch("/api/auth/logout", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ userId: user.id }),
+        })
+      } catch (error) {
+        console.error("Logout error:", error)
+      }
+    }
+
+    clearCurrentUser()
     setIsLoggedIn(false)
-    setUsername("")
-    setRoomId("")
     setError(null)
-    setSuccessMessage(null)
-    // Keep localStorage data for next time
   }
 
   if (isLoggedIn) {
-    return <ChatRoom username={username} roomId={roomId} onLeaveRoom={handleLeaveRoom} />
+    return <ChatLayout onLogout={handleLogout} />
   }
 
-  return <LoginForm onJoinRoom={handleJoinRoom} loading={loading} error={error} successMessage={successMessage} />
+  return <LoginForm onLogin={handleLogin} loading={loading} error={error} />
 }
