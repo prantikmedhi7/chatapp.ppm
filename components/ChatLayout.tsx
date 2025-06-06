@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { getPusherClient } from "@/lib/pusher"
+import { initializePusherClient } from "@/lib/pusher"
 import { getCurrentUser } from "@/lib/auth"
 import Sidebar from "./Sidebar"
 import ChatWindow from "./ChatWindow"
@@ -37,8 +37,18 @@ export default function ChatLayout({ onLogout }: ChatLayoutProps) {
   const [activeConversation, setActiveConversation] = useState<string | null>(null)
   const [showSearch, setShowSearch] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [pusherClient, setPusherClient] = useState<any>(null)
 
   const currentUser = getCurrentUser()
+
+  // Initialize Pusher client
+  useEffect(() => {
+    const initPusher = async () => {
+      const client = await initializePusherClient()
+      setPusherClient(client)
+    }
+    initPusher()
+  }, [])
 
   // Load conversations
   useEffect(() => {
@@ -63,10 +73,7 @@ export default function ChatLayout({ onLogout }: ChatLayoutProps) {
 
   // Set up Pusher subscriptions
   useEffect(() => {
-    if (!currentUser) return
-
-    const pusherClient = getPusherClient()
-    if (!pusherClient) return
+    if (!currentUser || !pusherClient) return
 
     const userChannel = pusherClient.subscribe(`user-${currentUser.id}`)
 
@@ -101,9 +108,11 @@ export default function ChatLayout({ onLogout }: ChatLayoutProps) {
     }
 
     return () => {
-      pusherClient.unsubscribe(`user-${currentUser.id}`)
+      if (pusherClient) {
+        pusherClient.unsubscribe(`user-${currentUser.id}`)
+      }
     }
-  }, [currentUser])
+  }, [currentUser, pusherClient])
 
   const handleStartConversation = async (friendId: string) => {
     try {

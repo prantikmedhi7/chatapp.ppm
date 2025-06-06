@@ -2,7 +2,6 @@
 
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import { getPusherClient } from "@/lib/pusher"
 
 export default function ConnectionDebug() {
   const [debugInfo, setDebugInfo] = useState<any>(null)
@@ -12,25 +11,17 @@ export default function ConnectionDebug() {
   const checkConnection = async () => {
     setLoading(true)
     try {
-      // Get server environment info
+      // Get basic server info without exposing sensitive data
       const response = await fetch("/api/debug")
       const serverInfo = await response.json()
 
-      // Get client-side Pusher info
-      const pusherClient = getPusherClient()
-      const clientInfo = {
-        connectionState: pusherClient?.connection.state || "not initialized",
-        socketId: pusherClient?.connection.socket_id || "none",
-        timeline: pusherClient?.connection.timeline?.slice(-5) || [],
-      }
-
       setDebugInfo({
         server: serverInfo,
-        client: clientInfo,
         browser: {
-          userAgent: navigator.userAgent,
+          userAgent: navigator.userAgent.substring(0, 50) + "...", // Truncate for privacy
           online: navigator.onLine,
         },
+        timestamp: new Date().toISOString(),
       })
     } catch (error) {
       console.error("Debug error:", error)

@@ -1,14 +1,13 @@
-import { type NextRequest, NextResponse } from "next/server"
+import { NextResponse } from "next/server"
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
-    // Return environment variables for debugging (only public ones)
+    // Only return non-sensitive debug information
     return NextResponse.json({
-      pusherKey: process.env.NEXT_PUBLIC_PUSHER_KEY?.substring(0, 5) + "...",
-      pusherCluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER,
-      hasAppId: !!process.env.PUSHER_APP_ID,
-      hasSecret: !!process.env.PUSHER_SECRET,
+      status: "ok",
+      timestamp: new Date().toISOString(),
       nodeEnv: process.env.NODE_ENV,
+      // Remove any sensitive environment variable exposure
     })
   } catch (error) {
     console.error("Debug error:", error)

@@ -3,7 +3,7 @@
 import type React from "react"
 
 import { useState, useEffect, useRef } from "react"
-import { getPusherClient } from "@/lib/pusher"
+import { initializePusherClient } from "@/lib/pusher"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Send, Smile } from "lucide-react"
@@ -45,9 +45,19 @@ export default function ChatWindow({ conversationId, currentUser }: ChatWindowPr
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
   const [typingUsers, setTypingUsers] = useState<string[]>([])
   const [typingTimeout, setTypingTimeout] = useState<NodeJS.Timeout | null>(null)
+  const [pusherClient, setPusherClient] = useState<any>(null)
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+
+  // Initialize Pusher client
+  useEffect(() => {
+    const initPusher = async () => {
+      const client = await initializePusherClient()
+      setPusherClient(client)
+    }
+    initPusher()
+  }, [])
 
   // Load messages
   useEffect(() => {
@@ -71,7 +81,6 @@ export default function ChatWindow({ conversationId, currentUser }: ChatWindowPr
 
   // Set up Pusher subscriptions
   useEffect(() => {
-    const pusherClient = getPusherClient()
     if (!pusherClient) return
 
     const userChannel = pusherClient.subscribe(`user-${currentUser.id}`)
@@ -98,10 +107,12 @@ export default function ChatWindow({ conversationId, currentUser }: ChatWindowPr
     })
 
     return () => {
-      pusherClient.unsubscribe(`user-${currentUser.id}`)
-      pusherClient.unsubscribe(`conversation-${conversationId}`)
+      if (pusherClient) {
+        pusherClient.unsubscribe(`user-${currentUser.id}`)
+        pusherClient.unsubscribe(`conversation-${conversationId}`)
+      }
     }
-  }, [conversationId, currentUser.id])
+  }, [conversationId, currentUser.id, pusherClient])
 
   // Auto scroll to bottom
   useEffect(() => {

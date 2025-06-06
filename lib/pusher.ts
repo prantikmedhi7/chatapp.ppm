@@ -17,10 +17,40 @@ let pusherClient: PusherClient
 export function getPusherClient() {
   if (typeof window !== "undefined") {
     if (!pusherClient) {
-      pusherClient = new PusherClient(process.env.NEXT_PUBLIC_PUSHER_KEY!, {
-        cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER!,
-        forceTLS: true,
-      })
+      // Get Pusher config from server
+      fetch("/api/pusher-config")
+        .then((res) => res.json())
+        .then((config) => {
+          pusherClient = new PusherClient(config.key, {
+            cluster: config.cluster,
+            forceTLS: true,
+          })
+        })
+        .catch((error) => {
+          console.error("Failed to get Pusher config:", error)
+        })
+    }
+    return pusherClient
+  }
+  return null
+}
+
+// Alternative function that returns a promise for proper initialization
+export async function initializePusherClient(): Promise<PusherClient | null> {
+  if (typeof window !== "undefined") {
+    if (!pusherClient) {
+      try {
+        const response = await fetch("/api/pusher-config")
+        const config = await response.json()
+
+        pusherClient = new PusherClient(config.key, {
+          cluster: config.cluster,
+          forceTLS: true,
+        })
+      } catch (error) {
+        console.error("Failed to initialize Pusher client:", error)
+        return null
+      }
     }
     return pusherClient
   }
